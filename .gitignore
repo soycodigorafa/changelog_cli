@@ -1,1 +1,20 @@
+# This tool's own generated data — real scraped PR titles/tags, never commit.
 .cache/
+
+# Dart/Pub
+.dart_tool/
+.packages
+build/
+pubspec_overrides.yaml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.DocumentRevisions-V100
+.apdisk
