@@ -1,5 +1,6 @@
 name: changelog_cli
 description: Tag-to-tag changelog generator for the groceries monorepo apps.
+version: 0.1.0
 publish_to: none
 
 environment:

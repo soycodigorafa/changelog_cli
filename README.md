@@ -3,6 +3,18 @@
 A small Dart tool that turns this monorepo's git tags into a changelog, so nobody has to
 manually reassemble "which PRs landed between tag X and tag Y" by hand anymore.
 
+## Quick start
+
+```bash
+cd local_tools/changelog_cli
+dart pub get                  # once, or whenever pubspec.yaml changes
+dart run bin/changelog.dart   # launches the interactive TUI
+```
+
+Pick an app → `Sync all apps` (first run) → browse a tag or `Search` to see PR changelogs. If
+`dart` isn't on your `PATH` on this machine, see **Setup** below for the exact SDK path to use
+instead. For scripted/CI usage, `search`, `sync`, and the full flag reference, see **Usage**.
+
 ## Problem
 
 Two things already existed before this tool:
@@ -71,6 +83,8 @@ lib/src/
                                reads, bounded-concurrency (8) tag diffing, and the bulk
                                backfill behind the `sync` command; SyncController for
                                pause/resume/cancel
+  version.dart                readAppVersion(): reads pubspec.yaml's version: field at
+                               runtime — only reliable under `dart run`, not `dart compile exe`
 
   tui/
     app.dart                  ChangelogTuiRoot: holds the screen stack, no Navigator needed; also
@@ -112,14 +126,9 @@ test/
 
 ## Setup (do this once)
 
-`dart`/`flutter` aren't on `PATH` on this machine. Use the Dart SDK bundled in the actual
-Flutter checkout at `/Users/sandovalrafael/flutter` — **not** any `fvm` version (those aren't on
-`PATH` either, and their wrapper script tries to self-update the engine cache, which fails
-under a sandboxed/restricted shell).
-
 ```bash
-cd tool/changelog_cli
-/Users/sandovalrafael/flutter/bin/cache/dart-sdk/bin/dart pub get
+cd local_tools/changelog_cli
+dart pub get
 ```
 
 Fetches `args`, `path`, and `nocterm` (and nocterm's own transitive deps) into the shared pub
@@ -130,7 +139,7 @@ cache. Re-run this whenever `pubspec.yaml` changes.
 **Interactive (default):**
 
 ```bash
-/Users/sandovalrafael/flutter/bin/cache/dart-sdk/bin/dart run bin/changelog.dart
+dart run bin/changelog.dart
 ```
 
 Every screen shows a status line — "Fully synced — last full sync: 2026-09-02 14:32" or "Not
@@ -206,6 +215,7 @@ or, if nothing matched within the window: `Sample: no match for "TASK-1234" with
 | `--display-name`  | Override the header name for a single app                            |
 | `--no-fetch`      | Skip `git fetch --tags` before reading                               |
 | `--no-cache`      | Skip the on-disk PR-title cache for this run (see Caching below)     |
+| `--version` / `-v` | Print the tool's version (read from `pubspec.yaml`) and exit        |
 
 A `make changelog ARGS="..."` target in the root `Makefile` forwards to this, alongside the
 existing `ir-tag`/`rc-tag`/`qa-tag` targets.
@@ -259,8 +269,8 @@ sync run's actual progress, not a live per-screen recheck of current git state.
 ## Testing
 
 ```bash
-/Users/sandovalrafael/flutter/bin/cache/dart-sdk/bin/dart analyze
-/Users/sandovalrafael/flutter/bin/cache/dart-sdk/bin/dart test
+dart analyze
+dart test
 ```
 
 The engine is tested against `FakeGitClient` (`test/fake_git_client.dart`) so tests never touch

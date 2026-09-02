@@ -10,6 +10,7 @@ import 'package:changelog_cli/src/search.dart';
 import 'package:changelog_cli/src/sync.dart';
 import 'package:changelog_cli/src/time_range.dart';
 import 'package:changelog_cli/src/tui/app.dart';
+import 'package:changelog_cli/src/version.dart';
 import 'package:path/path.dart' as p;
 
 Future<void> main(List<String> arguments) async {
@@ -26,7 +27,8 @@ Future<void> main(List<String> arguments) async {
         help: 'search: how far back to look, e.g. day, "2 days", "365 days", "1 year", or max')
     ..addFlag('no-fetch', negatable: false, help: 'Skip git fetch --tags before reading')
     ..addFlag('no-cache', negatable: false, help: 'Skip the on-disk PR-title cache for this run')
-    ..addFlag('help', abbr: 'h', negatable: false);
+    ..addFlag('help', abbr: 'h', negatable: false)
+    ..addFlag('version', abbr: 'v', negatable: false);
 
   ArgResults args;
   try {
@@ -35,6 +37,11 @@ Future<void> main(List<String> arguments) async {
     stderr.writeln('Error: ${e.message}\n');
     _printUsage(parser);
     exitCode = 64;
+    return;
+  }
+
+  if (args['version'] as bool) {
+    stdout.writeln('changelog_cli v${readAppVersion()}');
     return;
   }
 

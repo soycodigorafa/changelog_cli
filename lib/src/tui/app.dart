@@ -5,6 +5,7 @@ import 'package:nocterm/nocterm.dart';
 import '../app_registry.dart';
 import '../cache.dart';
 import '../git_client.dart';
+import '../version.dart';
 import 'app_picker.dart';
 import 'changelog_view.dart';
 import 'search_view.dart';
@@ -105,7 +106,7 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
 Future<void> runChangelogTui(List<AppEntry> apps, GitClient git, Directory cacheDir) {
   return runApp(
     NoctermApp(
-      title: 'changelog',
+      title: 'changelog v${readAppVersion()}',
       child: ChangelogTuiRoot(apps: apps, git: git, cacheDir: cacheDir),
     ),
   );
