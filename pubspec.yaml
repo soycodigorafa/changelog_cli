@@ -6,6 +6,9 @@ publish_to: none
 environment:
   sdk: ">=3.8.0 <4.0.0"
 
+executables:
+  chlog: changelog # `chlog` command -> bin/changelog.dart
+
 dependencies:
   args: ^2.6.0
   nocterm: ^0.9.0

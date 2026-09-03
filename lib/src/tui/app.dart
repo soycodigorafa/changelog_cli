@@ -106,7 +106,7 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
 Future<void> runChangelogTui(List<AppEntry> apps, GitClient git, Directory cacheDir) {
   return runApp(
     NoctermApp(
-      title: 'changelog v${readAppVersion()}',
+      title: 'changelog v$appVersion',
       child: ChangelogTuiRoot(apps: apps, git: git, cacheDir: cacheDir),
     ),
   );

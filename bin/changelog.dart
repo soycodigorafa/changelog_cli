@@ -41,7 +41,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   if (args['version'] as bool) {
-    stdout.writeln('changelog_cli v${readAppVersion()}');
+    stdout.writeln('changelog_cli v$appVersion');
     return;
   }
 

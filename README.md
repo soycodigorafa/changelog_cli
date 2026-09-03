@@ -11,9 +11,9 @@ dart pub get                  # once, or whenever pubspec.yaml changes
 dart run bin/changelog.dart   # launches the interactive TUI
 ```
 
-Pick an app → `Sync all apps` (first run) → browse a tag or `Search` to see PR changelogs. If
-`dart` isn't on your `PATH` on this machine, see **Setup** below for the exact SDK path to use
-instead. For scripted/CI usage, `search`, `sync`, and the full flag reference, see **Usage**.
+Pick an app → `Sync all apps` (first run) → browse a tag or `Search` to see PR changelogs. Want
+to run it as a plain `chlog` command instead of `cd`-ing in every time? See **Global install**
+below. For scripted/CI usage, `search`, `sync`, and the full flag reference, see **Usage**.
 
 ## Problem
 
@@ -83,8 +83,9 @@ lib/src/
                                reads, bounded-concurrency (8) tag diffing, and the bulk
                                backfill behind the `sync` command; SyncController for
                                pause/resume/cancel
-  version.dart                readAppVersion(): reads pubspec.yaml's version: field at
-                               runtime — only reliable under `dart run`, not `dart compile exe`
+  version.dart                appVersion: a manually-maintained constant (bump alongside
+                               pubspec.yaml's version: field) — baked into the compiled code,
+                               so it's correct under `dart run` and once installed as `chlog`
 
   tui/
     app.dart                  ChangelogTuiRoot: holds the screen stack, no Navigator needed; also
@@ -133,6 +134,34 @@ dart pub get
 
 Fetches `args`, `path`, and `nocterm` (and nocterm's own transitive deps) into the shared pub
 cache. Re-run this whenever `pubspec.yaml` changes.
+
+## Global install
+
+`pubspec.yaml` declares an `executables:` entry (`chlog: changelog`, i.e. the `bin/changelog.dart`
+entrypoint), so instead of `cd`-ing into this package and running `dart run bin/changelog.dart`
+every time, you can install it once as an ordinary command:
+
+```bash
+# from a checkout of this monorepo:
+dart pub global activate --source path local_tools/changelog_cli
+```
+
+Make sure `~/.pub-cache/bin` is on your `PATH` (pub warns if it isn't), then just:
+
+```bash
+chlog
+chlog sync
+chlog some_app search "TASK-1234" --since "1 year"
+```
+
+`chlog` still operates on whichever monorepo checkout you run it from (it walks up from the
+current directory to find `apps/` + `pubspec.yaml`, same as `dart run` does today) — installing
+it globally only changes how you invoke it, not what it does.
+
+`pub global activate` snapshots the package at that moment, so after pulling changes to this
+tool, re-run the same `activate` command to pick them up — there's no live auto-update. (Once
+this tool's repo has a shareable URL, the same works with `--source git <repo-url> --git-path
+local_tools/changelog_cli` instead of `--source path`.)
 
 ## Usage
 
@@ -215,7 +244,7 @@ or, if nothing matched within the window: `Sample: no match for "TASK-1234" with
 | `--display-name`  | Override the header name for a single app                            |
 | `--no-fetch`      | Skip `git fetch --tags` before reading                               |
 | `--no-cache`      | Skip the on-disk PR-title cache for this run (see Caching below)     |
-| `--version` / `-v` | Print the tool's version (read from `pubspec.yaml`) and exit        |
+| `--version` / `-v` | Print the tool's version and exit                                    |
 
 A `make changelog ARGS="..."` target in the root `Makefile` forwards to this, alongside the
 existing `ir-tag`/`rc-tag`/`qa-tag` targets.
