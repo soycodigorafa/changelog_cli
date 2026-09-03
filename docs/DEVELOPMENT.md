@@ -169,12 +169,20 @@ or, if nothing matched within the window: `Sample: no match for "TASK-1234" with
 | `--since`         | `search` only: how far back to look — `day`, `"2 days"`, `"365 days"`, `"1 year"`, or `max` (default) |
 | `--format`        | `markdown` (default) or `text`                                       |
 | `--display-name`  | Override the header name for a single app                            |
-| `--no-fetch`      | Skip `git fetch --tags` before reading                               |
+| `--fetch`         | Run `git fetch --tags` before reading (off by default — see note below) |
 | `--no-cache`      | Skip the on-disk PR-title cache for this run (see Caching internals below) |
 | `--version` / `-v` | Print the tool's version and exit                                    |
 
 A `make changelog ARGS="..."` target in the root `Makefile` forwards to this, alongside the
 existing `ir-tag`/`rc-tag`/`qa-tag` targets.
+
+`git fetch --tags` is opt-in (`--fetch`), not automatic, as of 0.2.0: it used to run
+unconditionally on every invocation with no error handling, so any repo without a reachable
+remote (no `origin`, offline, auth prompt, shallow/local-only clone) crashed the whole tool with
+a raw `ProcessException` before it even reached the app picker. Without `--fetch`, `chlog`
+just reads whatever tags already exist locally — still correct as long as the repo's tags are
+reasonably up to date; pass `--fetch` explicitly when you specifically want the latest tags from
+the remote first.
 
 ## Caching internals
 

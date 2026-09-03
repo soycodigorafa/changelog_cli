@@ -14,6 +14,15 @@ import 'package:changelog_cli/src/version.dart';
 import 'package:path/path.dart' as p;
 
 Future<void> main(List<String> arguments) async {
+  try {
+    await _run(arguments);
+  } catch (error) {
+    _printFriendlyError(error);
+    exitCode = 1;
+  }
+}
+
+Future<void> _run(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption('type', defaultsTo: 'all', help: 'Filter tag type: ir, rc, rc_store, ir_qa, all')
     ..addOption('from', help: 'Start tag (inclusive)')
@@ -25,7 +34,7 @@ Future<void> main(List<String> arguments) async {
     ..addOption('since',
         defaultsTo: 'max',
         help: 'search: how far back to look, e.g. day, "2 days", "365 days", "1 year", or max')
-    ..addFlag('no-fetch', negatable: false, help: 'Skip git fetch --tags before reading')
+    ..addFlag('fetch', negatable: false, help: 'Run git fetch --tags before reading (off by default)')
     ..addFlag('no-cache', negatable: false, help: 'Skip the on-disk PR-title cache for this run')
     ..addFlag('help', abbr: 'h', negatable: false)
     ..addFlag('version', abbr: 'v', negatable: false);
@@ -57,7 +66,7 @@ Future<void> main(List<String> arguments) async {
 
   if (args.rest.isEmpty) {
     final git = ProcessGitClient(workingDirectory: repoRoot);
-    if (!(args['no-fetch'] as bool)) {
+    if (args['fetch'] as bool) {
       await git.fetchTags();
     }
     await runChangelogTui(apps, git, cacheDir);
@@ -66,7 +75,7 @@ Future<void> main(List<String> arguments) async {
 
   if (args.rest[0] == 'sync') {
     final git = ProcessGitClient(workingDirectory: repoRoot);
-    if (!(args['no-fetch'] as bool)) {
+    if (args['fetch'] as bool) {
       await git.fetchTags();
     }
     final results = await syncAll(
@@ -106,7 +115,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   final git = ProcessGitClient(workingDirectory: repoRoot);
-  if (!(args['no-fetch'] as bool)) {
+  if (args['fetch'] as bool) {
     await git.fetchTags();
   }
 
@@ -204,9 +213,30 @@ String _findRepoRoot() {
     }
     final parent = dir.parent;
     if (parent.path == dir.path) {
-      throw StateError('Could not find monorepo root (apps/ + pubspec.yaml) above ${Directory.current.path}');
+      throw StateError(
+        "chlog needs to run from inside the target repo (a folder with both apps/ and "
+        "pubspec.yaml). Searched from: ${Directory.current.path}",
+      );
     }
     dir = parent;
+  }
+}
+
+/// Turns an uncaught error into a short, human-readable message instead of a
+/// raw Dart stack trace — the last line of defense for anything not already
+/// handled with a specific error message above (bad args, unknown app, ...).
+void _printFriendlyError(Object error) {
+  if (error is ProcessException) {
+    final command = '${error.executable} ${error.arguments.join(' ')}'.trim();
+    stderr.writeln('chlog could not run `$command`.');
+    final detail = error.message.trim();
+    if (detail.isNotEmpty) stderr.writeln(detail);
+  } else if (error is StateError) {
+    stderr.writeln('chlog error: ${error.message}');
+  } else if (error is ArgumentError) {
+    stderr.writeln('chlog error: ${error.message}');
+  } else {
+    stderr.writeln('chlog hit an unexpected error: $error');
   }
 }
 
