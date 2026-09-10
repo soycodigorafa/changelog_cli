@@ -78,12 +78,7 @@ Future<void> _run(List<String> arguments) async {
     if (args['fetch'] as bool) {
       await git.fetchTags();
     }
-    final results = await syncAll(
-      git,
-      apps,
-      cacheDir,
-      onFinished: (cachedTagsNow, totalTags) => writeSyncStats(cacheDir, cachedTags: cachedTagsNow, totalTags: totalTags),
-    );
+    final results = await syncAll(git, apps, cacheDir);
     await recordFullSync(cacheDir);
     for (final result in results) {
       if (result.newlyCached == 0) {

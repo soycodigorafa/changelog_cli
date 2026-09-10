@@ -32,7 +32,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
   String? selectedType;
   bool syncing = false;
   DateTime? lastFullSyncAt;
-  SyncStats? syncStats;
 
   @override
   void initState() {
@@ -42,10 +41,8 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
 
   Future<void> _reloadSyncStatus() async {
     final at = await readLastFullSyncAt(component.cacheDir);
-    final stats = await readSyncStats(component.cacheDir);
     setState(() {
       lastFullSyncAt = at;
-      syncStats = stats;
     });
   }
 
@@ -66,7 +63,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
       return AppPicker(
         apps: component.apps,
         lastFullSyncAt: lastFullSyncAt,
-        syncStats: syncStats,
         onSelected: (app) => setState(() => selectedApp = app),
         onSync: () => setState(() => syncing = true),
       );
@@ -76,7 +72,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
         app: selectedApp!,
         git: component.git,
         lastFullSyncAt: lastFullSyncAt,
-        syncStats: syncStats,
         onSelected: (type) => setState(() => selectedType = type),
         onBack: () => setState(() => selectedApp = null),
       );
@@ -87,7 +82,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
         git: component.git,
         cacheDir: component.cacheDir,
         lastFullSyncAt: lastFullSyncAt,
-        syncStats: syncStats,
         onBack: () => setState(() => selectedType = null),
       );
     }
@@ -97,7 +91,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
       typeFilter: selectedType!,
       cacheDir: component.cacheDir,
       lastFullSyncAt: lastFullSyncAt,
-      syncStats: syncStats,
       onBack: () => setState(() => selectedType = null),
     );
   }

@@ -8,8 +8,7 @@ import '../changelog.dart';
 import '../git_client.dart';
 import '../sync.dart';
 import '../tag_info.dart';
-import 'pr_title_line.dart';
-import 'sync_status_line.dart';
+import 'design/design.dart';
 
 /// Screen 3: lists tags for the chosen app/type (cheap — just parsed tag
 /// refs, no PR diffing), most recent first with a "fetch more" action to
@@ -24,7 +23,6 @@ class ChangelogView extends StatefulComponent {
     required this.typeFilter,
     required this.cacheDir,
     required this.lastFullSyncAt,
-    required this.syncStats,
     required this.onBack,
   });
 
@@ -33,7 +31,6 @@ class ChangelogView extends StatefulComponent {
   final String typeFilter;
   final Directory cacheDir;
   final DateTime? lastFullSyncAt;
-  final SyncStats? syncStats;
   final void Function() onBack;
 
   @override
@@ -162,105 +159,37 @@ class _ChangelogViewState extends State<ChangelogView> {
     _scrollController.jumpTo(_scrollController.offset + delta);
   }
 
-  @override
-  Component build(BuildContext context) {
-    if (error != null) {
-      return Container(
-        padding: const EdgeInsets.all(1),
-        child: Text('Error loading tags: $error', style: const TextStyle(color: Colors.brightRed)),
-      );
-    }
-    if (tags == null) {
-      return const Container(
-        padding: EdgeInsets.all(1),
-        child: Text('Loading tags...'),
-      );
-    }
-    if (tags!.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(1),
-        child: Text('No ${component.typeFilter} tags found for ${component.app.folderName}.'),
-      );
-    }
-
-    if (loadingDetail) {
-      return const Container(
-        padding: EdgeInsets.all(1),
-        child: Text('Loading changelog...'),
-      );
-    }
-    if (detailError != null) {
-      return Container(
-        padding: const EdgeInsets.all(1),
-        child: Text('Error building changelog: $detailError', style: const TextStyle(color: Colors.brightRed)),
-      );
-    }
-    if (selectedEntry != null) {
-      return _buildDetail(selectedEntry!);
-    }
-    return _buildList();
-  }
-
-  Component _buildList() {
+  bool _onListKeyEvent(KeyboardEvent event) {
     final visible = _visibleTags;
-    return Focusable(
-      focused: true,
-      onKeyEvent: (event) {
-        if (event.logicalKey == LogicalKey.arrowDown) {
-          setState(() {
-            if (selectedIndex < visible.length - 1) selectedIndex++;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.arrowUp) {
-          setState(() {
-            if (selectedIndex > 0) selectedIndex--;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.enter) {
-          _openTag(visible[selectedIndex]);
-          return true;
-        }
-        if (event.character == 'f') {
-          _fetchMore();
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.escape) {
-          component.onBack();
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.keyQ) {
-          shutdownApp();
-          return true;
-        }
-        return false;
-      },
-      child: Container(
-        padding: const EdgeInsets.all(1),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('${component.app.folderName} [${component.typeFilter}] — showing ${visible.length} of ${tags!.length} tags',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            buildSyncStatusLine(component.lastFullSyncAt, component.syncStats),
-            const SizedBox(height: 1),
-            for (var i = 0; i < visible.length; i++)
-              Text(
-                '${i == selectedIndex ? '> ' : '  '}${visible[i].versionLabel}-${visible[i].type}',
-                style: TextStyle(color: i == selectedIndex ? Colors.brightCyan : Colors.white),
-              ),
-            const SizedBox(height: 1),
-            Text(
-              _hasMore
-                  ? '↑/↓ move   Enter view changelog   f fetch $_pageSize more   Esc back   q quit'
-                  : '↑/↓ move   Enter view changelog   Esc back   q quit',
-              style: const TextStyle(color: Colors.brightBlack),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      setState(() {
+        if (selectedIndex < visible.length - 1) selectedIndex++;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      setState(() {
+        if (selectedIndex > 0) selectedIndex--;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.enter) {
+      _openTag(visible[selectedIndex]);
+      return true;
+    }
+    if (event.character == 'f') {
+      _fetchMore();
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.escape) {
+      component.onBack();
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.keyQ) {
+      shutdownApp();
+      return true;
+    }
+    return false;
   }
 
   String _headerText() {
@@ -272,107 +201,224 @@ class _ChangelogViewState extends State<ChangelogView> {
         ? ''
         : '   [${queryMode == _QueryMode.tagFilter ? 'filter' : 'search'}: $queryText]';
     return '${component.app.folderName} [${component.typeFilter}]   '
-        '↑/↓/PgUp/PgDn scroll   / filter   s search   Esc back to list   q quit$active';
+        '↑/↓/PgUp/PgDn scroll   / filter   s search   drag to copy   Esc back to list   q quit$active';
   }
 
-  Component _buildDetail(ChangelogEntry entry) {
-    final titles = _visiblePrTitles;
-    final lines = <Component>[
-      Text(
-        '${component.app.displayName} ${entry.tag.versionLabel}-${entry.tag.type}',
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brightYellow),
-      ),
-      const SizedBox(height: 1),
-      for (final title in titles) ...[
-        buildPrTitleLine(title),
-        const SizedBox(height: 1),
-      ],
-    ];
+  bool _onDetailKeyEvent(KeyboardEvent event) {
+    if (editingQuery) {
+      if (event.logicalKey == LogicalKey.escape) {
+        setState(() {
+          editingQuery = false;
+          queryMode = _QueryMode.none;
+          queryText = '';
+        });
+        return true;
+      }
+      if (event.logicalKey == LogicalKey.enter) {
+        setState(() => editingQuery = false);
+        return true;
+      }
+      if (event.logicalKey == LogicalKey.backspace) {
+        if (queryText.isNotEmpty) {
+          setState(() => queryText = queryText.substring(0, queryText.length - 1));
+        }
+        return true;
+      }
+      if (event.character != null && event.character!.isNotEmpty) {
+        setState(() => queryText += event.character!);
+        return true;
+      }
+      return false;
+    }
 
-    return Focusable(
-      focused: true,
-      onKeyEvent: (event) {
-        if (editingQuery) {
-          if (event.logicalKey == LogicalKey.escape) {
-            setState(() {
-              editingQuery = false;
-              queryMode = _QueryMode.none;
-              queryText = '';
-            });
-            return true;
-          }
-          if (event.logicalKey == LogicalKey.enter) {
-            setState(() => editingQuery = false);
-            return true;
-          }
-          if (event.logicalKey == LogicalKey.backspace) {
-            if (queryText.isNotEmpty) {
-              setState(() => queryText = queryText.substring(0, queryText.length - 1));
-            }
-            return true;
-          }
-          if (event.character != null && event.character!.isNotEmpty) {
-            setState(() => queryText += event.character!);
-            return true;
-          }
-          return false;
-        }
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      _scrollBy(1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      _scrollBy(-1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.pageDown) {
+      _scrollBy(10);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.pageUp) {
+      _scrollBy(-10);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.slash) {
+      _startQuery(_QueryMode.tagFilter);
+      return true;
+    }
+    if (event.character == 's') {
+      _startQuery(_QueryMode.search);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.escape) {
+      _closeDetail();
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.keyQ) {
+      shutdownApp();
+      return true;
+    }
+    return false;
+  }
 
-        if (event.logicalKey == LogicalKey.arrowDown) {
-          _scrollBy(1);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.arrowUp) {
-          _scrollBy(-1);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.pageDown) {
-          _scrollBy(10);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.pageUp) {
-          _scrollBy(-10);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.slash) {
-          _startQuery(_QueryMode.tagFilter);
-          return true;
-        }
-        if (event.character == 's') {
-          _startQuery(_QueryMode.search);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.escape) {
-          _closeDetail();
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.keyQ) {
-          shutdownApp();
-          return true;
-        }
-        return false;
-      },
-      child: Column(
+  @override
+  Component build(BuildContext context) {
+    final scaffoldHeader = SectionHeader('${component.app.folderName} [${component.typeFilter}]');
+    if (error != null) {
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: scaffoldHeader,
+        body: ErrorText('Error loading tags: $error'),
+        footer: const FooterHint(''),
+      );
+    }
+    if (tags == null) {
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: scaffoldHeader,
+        body: const LoadingText('Loading tags...'),
+        footer: const FooterHint(''),
+      );
+    }
+    if (tags!.isEmpty) {
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: scaffoldHeader,
+        body: BodyText('No ${component.typeFilter} tags found for ${component.app.folderName}.'),
+        footer: const FooterHint(''),
+      );
+    }
+    if (loadingDetail) {
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: scaffoldHeader,
+        body: const LoadingText('Loading changelog...'),
+        footer: const FooterHint(''),
+      );
+    }
+    if (detailError != null) {
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: scaffoldHeader,
+        body: ErrorText('Error building changelog: $detailError'),
+        footer: const FooterHint(''),
+      );
+    }
+    if (selectedEntry != null) {
+      final entry = selectedEntry!;
+      return _TagDetailBody(
+        headerText: _headerText(),
+        lastFullSyncAt: component.lastFullSyncAt,
+        tagLabel: '${component.app.displayName} ${entry.tag.versionLabel}-${entry.tag.type}',
+        titles: _visiblePrTitles,
+        scrollController: _scrollController,
+        onKeyEvent: _onDetailKeyEvent,
+      );
+    }
+    final visible = _visibleTags;
+    return _TagListBody(
+      appLabel: component.app.folderName,
+      typeFilter: component.typeFilter,
+      shownCount: visible.length,
+      totalCount: tags!.length,
+      visibleTags: visible,
+      selectedIndex: selectedIndex,
+      footerText: _hasMore
+          ? '↑/↓ move   Enter view changelog   f fetch $_pageSize more   Esc back   q quit'
+          : '↑/↓ move   Enter view changelog   Esc back   q quit',
+      lastFullSyncAt: component.lastFullSyncAt,
+      onKeyEvent: _onListKeyEvent,
+    );
+  }
+}
+
+class _TagListBody extends StatelessComponent {
+  const _TagListBody({
+    required this.appLabel,
+    required this.typeFilter,
+    required this.shownCount,
+    required this.totalCount,
+    required this.visibleTags,
+    required this.selectedIndex,
+    required this.footerText,
+    required this.lastFullSyncAt,
+    required this.onKeyEvent,
+  });
+
+  final String appLabel;
+  final String typeFilter;
+  final int shownCount;
+  final int totalCount;
+  final List<TagInfo> visibleTags;
+  final int selectedIndex;
+  final String footerText;
+  final DateTime? lastFullSyncAt;
+  final KeyEventHandler onKeyEvent;
+
+  @override
+  Component build(BuildContext context) {
+    return ScreenScaffold(
+      onKeyEvent: onKeyEvent,
+      header: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(_headerText(), style: const TextStyle(color: Colors.brightBlack)),
-                buildSyncStatusLine(component.lastFullSyncAt, component.syncStats),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: lines),
-            ),
-          ),
+          SectionHeader('$appLabel [$typeFilter] — showing $shownCount of $totalCount tags'),
+          StatusLine(lastFullSyncAt: lastFullSyncAt),
         ],
       ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < visibleTags.length; i++)
+            SelectableRow(
+              label: '${visibleTags[i].versionLabel}-${visibleTags[i].type}',
+              selected: i == selectedIndex,
+            ),
+        ],
+      ),
+      footer: FooterHint(footerText),
+    );
+  }
+}
+
+class _TagDetailBody extends StatelessComponent {
+  const _TagDetailBody({
+    required this.headerText,
+    required this.lastFullSyncAt,
+    required this.tagLabel,
+    required this.titles,
+    required this.scrollController,
+    required this.onKeyEvent,
+  });
+
+  final String headerText;
+  final DateTime? lastFullSyncAt;
+  final String tagLabel;
+  final List<String> titles;
+  final ScrollController scrollController;
+  final KeyEventHandler onKeyEvent;
+
+  @override
+  Component build(BuildContext context) {
+    return ScreenScaffold(
+      onKeyEvent: onKeyEvent,
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FooterHint(headerText),
+          StatusLine(lastFullSyncAt: lastFullSyncAt),
+        ],
+      ),
+      body: CopyableScrollBody(
+        controller: scrollController,
+        children: [PrTitleSection(tagLabel: tagLabel, titles: titles)],
+      ),
+      footer: const FooterHint(''),
     );
   }
 }

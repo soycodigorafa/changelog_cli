@@ -60,19 +60,6 @@ void main() {
     expect(at!.isAfter(before.subtract(const Duration(seconds: 5))), isTrue);
   });
 
-  test('readSyncStats returns null when no sync has ever run', () async {
-    expect(await readSyncStats(tempDir), isNull);
-  });
-
-  test('writeSyncStats + readSyncStats round-trips', () async {
-    await writeSyncStats(tempDir, cachedTags: 522, totalTags: 600);
-    final stats = await readSyncStats(tempDir);
-
-    expect(stats, isNotNull);
-    expect(stats!.cachedTags, 522);
-    expect(stats.totalTags, 600);
-  });
-
   test('concurrent put + save calls never corrupt the cache file', () async {
     final file = File('${tempDir.path}/concurrent.json');
     final cache = await ChangelogCache.load(file);

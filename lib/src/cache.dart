@@ -83,34 +83,3 @@ Future<DateTime?> readLastFullSyncAt(Directory cacheDir) async {
     return null;
   }
 }
-
-/// `<cacheDir>/sync_stats.json` — how many tags (across every app) are
-/// cached out of how many exist, as of the last sync attempt (whether it
-/// completed or was canceled/paused-and-exited). Separate from
-/// [lastFullSyncFile], which only ever means "a full run completed".
-File syncStatsFile(Directory cacheDir) => File(p.join(cacheDir.path, 'sync_stats.json'));
-
-class SyncStats {
-  SyncStats({required this.cachedTags, required this.totalTags});
-
-  final int cachedTags;
-  final int totalTags;
-}
-
-Future<void> writeSyncStats(Directory cacheDir, {required int cachedTags, required int totalTags}) async {
-  final file = syncStatsFile(cacheDir);
-  await file.parent.create(recursive: true);
-  await file.writeAsString(jsonEncode({'cachedTags': cachedTags, 'totalTags': totalTags}));
-}
-
-/// `null` if no sync has ever run (or the file is unreadable).
-Future<SyncStats?> readSyncStats(Directory cacheDir) async {
-  final file = syncStatsFile(cacheDir);
-  if (!await file.exists()) return null;
-  try {
-    final decoded = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-    return SyncStats(cachedTags: decoded['cachedTags'] as int, totalTags: decoded['totalTags'] as int);
-  } catch (_) {
-    return null;
-  }
-}

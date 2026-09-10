@@ -23,8 +23,8 @@ chlog
 
 Pick an app → `Sync all apps` (first run) → browse a tag or `Search` to see PR changelogs.
 
-Every screen shows a status line — "Fully synced — last full sync: 2026-09-02 14:32" or "Not
-synced yet — run Sync from the app picker" — and the app picker's first row is always
+Every screen shows a status line — "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync
+from the app picker" — and the app picker's first row is always
 `Sync all apps`: pick it to run a full sync with a live progress bar and a `Scanning... <app>
 <tag>` line. While it's running, `p` pauses/resumes and `Esc` cancels — either way, anything
 already cached before pausing/canceling is kept (nothing is redone). When it finishes (or is
@@ -51,6 +51,10 @@ query (so you can widen the range and re-run without retyping).
 Every PR-title lookup (browsing a tag, or `Search`) reads from the on-disk cache first and
 writes anything newly computed back into it, so the second time you look at the same tag it's
 instant.
+
+On the changelog detail and search-results screens, click-and-drag over the PR titles to select
+text — releasing the mouse copies the selection to your system clipboard (via your terminal's
+OSC 52 support, which iTerm2, Terminal.app, WezTerm, Alacritty, and tmux all have).
 
 ---
 

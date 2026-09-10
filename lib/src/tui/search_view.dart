@@ -7,8 +7,7 @@ import '../cache.dart';
 import '../git_client.dart';
 import '../search.dart';
 import '../time_range.dart';
-import 'pr_title_line.dart';
-import 'sync_status_line.dart';
+import 'design/design.dart';
 
 /// Reachable from the type picker's `Search` entry: type a query, pick a
 /// time range, and see every tag (across every type) whose PR diff matched.
@@ -20,7 +19,6 @@ class SearchView extends StatefulComponent {
     required this.git,
     required this.cacheDir,
     required this.lastFullSyncAt,
-    required this.syncStats,
     required this.onBack,
   });
 
@@ -28,7 +26,6 @@ class SearchView extends StatefulComponent {
   final GitClient git;
   final Directory cacheDir;
   final DateTime? lastFullSyncAt;
-  final SyncStats? syncStats;
   final void Function() onBack;
 
   @override
@@ -89,150 +86,190 @@ class _SearchViewState extends State<SearchView> {
     _scrollController.jumpTo(_scrollController.offset + delta);
   }
 
+  bool _onFormKeyEvent(KeyboardEvent event) {
+    if (event.logicalKey == LogicalKey.arrowLeft) {
+      setState(() {
+        if (rangeIndex > 0) rangeIndex--;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowRight) {
+      setState(() {
+        if (rangeIndex < _ranges.length - 1) rangeIndex++;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.enter) {
+      _runSearch();
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.backspace) {
+      if (queryText.isNotEmpty) {
+        setState(() => queryText = queryText.substring(0, queryText.length - 1));
+      }
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.escape) {
+      component.onBack();
+      return true;
+    }
+    if (event.character != null && event.character!.isNotEmpty) {
+      setState(() => queryText += event.character!);
+      return true;
+    }
+    return false;
+  }
+
+  bool _onResultsKeyEvent(KeyboardEvent event) {
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      _scrollBy(1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      _scrollBy(-1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.pageDown) {
+      _scrollBy(10);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.pageUp) {
+      _scrollBy(-10);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.escape) {
+      setState(() => results = null);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.keyQ) {
+      shutdownApp();
+      return true;
+    }
+    return false;
+  }
+
   @override
   Component build(BuildContext context) {
     if (loading) {
-      return const Container(
-        padding: EdgeInsets.all(1),
-        child: Text('Searching...'),
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: SectionHeader('${component.app.folderName} — search PR titles'),
+        body: const LoadingText('Searching...'),
+        footer: const FooterHint(''),
       );
     }
-    if (results != null) {
-      return _buildResults(results!);
+    final matches = results;
+    if (matches != null) {
+      return _SearchResultsBody(
+        appLabel: component.app.folderName,
+        queryText: queryText,
+        rangeLabel: _rangeLabel,
+        matches: matches,
+        lastFullSyncAt: component.lastFullSyncAt,
+        scrollController: _scrollController,
+        onKeyEvent: _onResultsKeyEvent,
+      );
     }
-    return _buildForm();
-  }
-
-  Component _buildForm() {
-    return Focusable(
-      focused: true,
-      onKeyEvent: (event) {
-        if (event.logicalKey == LogicalKey.arrowLeft) {
-          setState(() {
-            if (rangeIndex > 0) rangeIndex--;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.arrowRight) {
-          setState(() {
-            if (rangeIndex < _ranges.length - 1) rangeIndex++;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.enter) {
-          _runSearch();
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.backspace) {
-          if (queryText.isNotEmpty) {
-            setState(() => queryText = queryText.substring(0, queryText.length - 1));
-          }
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.escape) {
-          component.onBack();
-          return true;
-        }
-        if (event.character != null && event.character!.isNotEmpty) {
-          setState(() => queryText += event.character!);
-          return true;
-        }
-        return false;
-      },
-      child: Container(
-        padding: const EdgeInsets.all(1),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('${component.app.folderName} — search PR titles', style: const TextStyle(fontWeight: FontWeight.bold)),
-            buildSyncStatusLine(component.lastFullSyncAt, component.syncStats),
-            const SizedBox(height: 1),
-            Text('Query: $queryText'),
-            Text('Range: $_rangeLabel   (←/→ to change)'),
-            if (error != null) ...[
-              const SizedBox(height: 1),
-              Text(error!, style: const TextStyle(color: Colors.brightRed)),
-            ],
-            const SizedBox(height: 1),
-            const Text('Type to edit query   ←/→ range   Enter search   Esc back',
-                style: TextStyle(color: Colors.brightBlack)),
-          ],
-        ),
-      ),
+    return _SearchFormBody(
+      appLabel: component.app.folderName,
+      queryText: queryText,
+      rangeLabel: _rangeLabel,
+      error: error,
+      lastFullSyncAt: component.lastFullSyncAt,
+      onKeyEvent: _onFormKeyEvent,
     );
   }
+}
 
-  Component _buildResults(List<SearchMatch> matches) {
-    final lines = <Component>[];
-    if (matches.isEmpty) {
-      lines.add(Text('No match for "$queryText" within $_rangeLabel. Try a wider range or a different query.'));
-    } else {
-      for (final match in matches) {
-        lines.add(Text(
-          '${match.type} ${match.tag.versionLabel} (${match.tag.rawTag})',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brightYellow),
-        ));
-        for (final title in match.matchedTitles) {
-          lines.add(buildPrTitleLine(title));
-        }
-        lines.add(const SizedBox(height: 1));
-      }
-    }
+class _SearchFormBody extends StatelessComponent {
+  const _SearchFormBody({
+    required this.appLabel,
+    required this.queryText,
+    required this.rangeLabel,
+    required this.error,
+    required this.lastFullSyncAt,
+    required this.onKeyEvent,
+  });
 
-    return Focusable(
-      focused: true,
-      onKeyEvent: (event) {
-        if (event.logicalKey == LogicalKey.arrowDown) {
-          _scrollBy(1);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.arrowUp) {
-          _scrollBy(-1);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.pageDown) {
-          _scrollBy(10);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.pageUp) {
-          _scrollBy(-10);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.escape) {
-          setState(() => results = null);
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.keyQ) {
-          shutdownApp();
-          return true;
-        }
-        return false;
-      },
-      child: Column(
+  final String appLabel;
+  final String queryText;
+  final String rangeLabel;
+  final String? error;
+  final DateTime? lastFullSyncAt;
+  final KeyEventHandler onKeyEvent;
+
+  @override
+  Component build(BuildContext context) {
+    return ScreenScaffold(
+      onKeyEvent: onKeyEvent,
+      header: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '${component.app.folderName}   query: "$queryText"   range: $_rangeLabel   '
-                  '↑/↓/PgUp/PgDn scroll   Esc edit query   q quit',
-                  style: const TextStyle(color: Colors.brightBlack),
-                ),
-                buildSyncStatusLine(component.lastFullSyncAt, component.syncStats),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: lines),
-            ),
-          ),
+          SectionHeader('$appLabel — search PR titles'),
+          StatusLine(lastFullSyncAt: lastFullSyncAt),
         ],
       ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BodyText('Query: $queryText'),
+          BodyText('Range: $rangeLabel   (←/→ to change)'),
+          if (error != null) ErrorText(error!),
+        ],
+      ),
+      footer: const FooterHint('Type to edit query   ←/→ range   Enter search   Esc back'),
+    );
+  }
+}
+
+class _SearchResultsBody extends StatelessComponent {
+  const _SearchResultsBody({
+    required this.appLabel,
+    required this.queryText,
+    required this.rangeLabel,
+    required this.matches,
+    required this.lastFullSyncAt,
+    required this.scrollController,
+    required this.onKeyEvent,
+  });
+
+  final String appLabel;
+  final String queryText;
+  final String rangeLabel;
+  final List<SearchMatch> matches;
+  final DateTime? lastFullSyncAt;
+  final ScrollController scrollController;
+  final KeyEventHandler onKeyEvent;
+
+  @override
+  Component build(BuildContext context) {
+    return ScreenScaffold(
+      onKeyEvent: onKeyEvent,
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FooterHint(
+            '$appLabel   query: "$queryText"   range: $rangeLabel   '
+            '↑/↓/PgUp/PgDn scroll   drag to copy   Esc edit query   q quit',
+          ),
+          StatusLine(lastFullSyncAt: lastFullSyncAt),
+        ],
+      ),
+      body: matches.isEmpty
+          ? BodyText('No match for "$queryText" within $rangeLabel. Try a wider range or a different query.')
+          : CopyableScrollBody(
+              controller: scrollController,
+              children: [
+                for (final match in matches) ...[
+                  PrTitleSection(
+                    tagLabel: '${match.type} ${match.tag.versionLabel} (${match.tag.rawTag})',
+                    titles: match.matchedTitles,
+                  ),
+                  AppSpacing.gap,
+                ],
+              ],
+            ),
+      footer: const FooterHint(''),
     );
   }
 }

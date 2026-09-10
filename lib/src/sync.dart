@@ -183,8 +183,7 @@ Future<SyncResult> syncApp(
 /// the grand total, before any diffing starts. [onProgress] reports one
 /// combined [SyncProgress] per tag across every app. [onFinished], if
 /// given, is called once at the end — even if [controller] was canceled —
-/// with the final cached/total tally, so callers can persist a
-/// synced-percentage that reflects exactly how far the run got.
+/// with the final cached/total tally.
 Future<List<SyncResult>> syncAll(
   GitClient git,
   List<AppEntry> apps,

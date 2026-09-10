@@ -4,7 +4,7 @@ import '../app_registry.dart';
 import '../cache.dart';
 import '../changelog.dart';
 import '../git_client.dart';
-import 'sync_status_line.dart';
+import 'design/design.dart';
 
 class TypePicker extends StatefulComponent {
   const TypePicker({
@@ -12,7 +12,6 @@ class TypePicker extends StatefulComponent {
     required this.app,
     required this.git,
     required this.lastFullSyncAt,
-    required this.syncStats,
     required this.onSelected,
     required this.onBack,
   });
@@ -20,7 +19,6 @@ class TypePicker extends StatefulComponent {
   final AppEntry app;
   final GitClient git;
   final DateTime? lastFullSyncAt;
-  final SyncStats? syncStats;
   final void Function(String typeFilter) onSelected;
   final void Function() onBack;
 
@@ -53,75 +51,76 @@ class _TypePickerState extends State<TypePicker> {
     }
   }
 
+  bool _onKeyEvent(KeyboardEvent event) {
+    final options = types!;
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      setState(() {
+        if (selectedIndex < options.length - 1) selectedIndex++;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      setState(() {
+        if (selectedIndex > 0) selectedIndex--;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.enter) {
+      final selected = options[selectedIndex];
+      if (selected == 'Search') {
+        component.onSelected('__search__');
+      } else {
+        component.onSelected(selected == 'All' ? 'all' : selected);
+      }
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.escape) {
+      component.onBack();
+      return true;
+    }
+    if (event.character == 's') {
+      component.onSelected('__search__');
+      return true;
+    }
+    return false;
+  }
+
   @override
   Component build(BuildContext context) {
     if (error != null) {
-      return Container(
-        padding: const EdgeInsets.all(1),
-        child: Text('Error loading tags for ${component.app.folderName}: $error',
-            style: const TextStyle(color: Colors.brightRed)),
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: const SectionHeader('Select a tag type'),
+        body: ErrorText('Error loading tags for ${component.app.folderName}: $error'),
+        footer: const FooterHint(''),
       );
     }
     final options = types;
     if (options == null) {
-      return const Container(
-        padding: EdgeInsets.all(1),
-        child: Text('Loading tags...'),
+      return ScreenScaffold(
+        onKeyEvent: (_) => false,
+        header: const SectionHeader('Select a tag type'),
+        body: const LoadingText('Loading tags...'),
+        footer: const FooterHint(''),
       );
     }
-    return Focusable(
-      focused: true,
-      onKeyEvent: (event) {
-        if (event.logicalKey == LogicalKey.arrowDown) {
-          setState(() {
-            if (selectedIndex < options.length - 1) selectedIndex++;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.arrowUp) {
-          setState(() {
-            if (selectedIndex > 0) selectedIndex--;
-          });
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.enter) {
-          final selected = options[selectedIndex];
-          if (selected == 'Search') {
-            component.onSelected('__search__');
-          } else {
-            component.onSelected(selected == 'All' ? 'all' : selected);
-          }
-          return true;
-        }
-        if (event.logicalKey == LogicalKey.escape) {
-          component.onBack();
-          return true;
-        }
-        if (event.character == 's') {
-          component.onSelected('__search__');
-          return true;
-        }
-        return false;
-      },
-      child: Container(
-        padding: const EdgeInsets.all(1),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('${component.app.folderName} — select a tag type',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            buildSyncStatusLine(component.lastFullSyncAt, component.syncStats),
-            const SizedBox(height: 1),
-            for (var i = 0; i < options.length; i++)
-              Text(
-                '${i == selectedIndex ? '> ' : '  '}${options[i]}',
-                style: TextStyle(color: i == selectedIndex ? Colors.brightCyan : Colors.white),
-              ),
-            const SizedBox(height: 1),
-            const Text('↑/↓ move   Enter select   s search   Esc back', style: TextStyle(color: Colors.brightBlack)),
-          ],
-        ),
+    return ScreenScaffold(
+      onKeyEvent: _onKeyEvent,
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionHeader('${component.app.folderName} — select a tag type'),
+          StatusLine(lastFullSyncAt: component.lastFullSyncAt),
+        ],
       ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < options.length; i++)
+            SelectableRow(label: options[i], selected: i == selectedIndex),
+        ],
+      ),
+      footer: const FooterHint('↑/↓ move   Enter select   s search   Esc back'),
     );
   }
 }
