@@ -11,6 +11,7 @@ import 'changelog_view.dart';
 import 'search_view.dart';
 import 'sync_view.dart';
 import 'type_picker.dart';
+import 'upcoming_view.dart';
 
 /// Root of the interactive TUI: a screen stack (app -> type -> changelog,
 /// or app -> sync) held as plain state, no [Navigator] — simple enough not
@@ -81,6 +82,14 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
         app: selectedApp!,
         git: component.git,
         cacheDir: component.cacheDir,
+        lastFullSyncAt: lastFullSyncAt,
+        onBack: () => setState(() => selectedType = null),
+      );
+    }
+    if (selectedType == '__upcoming__') {
+      return UpcomingView(
+        app: selectedApp!,
+        git: component.git,
         lastFullSyncAt: lastFullSyncAt,
         onBack: () => setState(() => selectedType = null),
       );

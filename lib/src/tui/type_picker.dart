@@ -42,7 +42,7 @@ class _TypePickerState extends State<TypePicker> {
       final tags = await loadTags(component.git, component.app);
       final distinct = tags.map((t) => t.type).toSet().toList()..sort();
       setState(() {
-        types = ['All', 'Search', ...distinct];
+        types = ['All', 'Search', 'Upcoming', ...distinct];
       });
     } catch (e) {
       setState(() {
@@ -69,6 +69,8 @@ class _TypePickerState extends State<TypePicker> {
       final selected = options[selectedIndex];
       if (selected == 'Search') {
         component.onSelected('__search__');
+      } else if (selected == 'Upcoming') {
+        component.onSelected('__upcoming__');
       } else {
         component.onSelected(selected == 'All' ? 'all' : selected);
       }
@@ -80,6 +82,10 @@ class _TypePickerState extends State<TypePicker> {
     }
     if (event.character == 's') {
       component.onSelected('__search__');
+      return true;
+    }
+    if (event.character == 'u') {
+      component.onSelected('__upcoming__');
       return true;
     }
     return false;
@@ -120,7 +126,7 @@ class _TypePickerState extends State<TypePicker> {
             SelectableRow(label: options[i], selected: i == selectedIndex),
         ],
       ),
-      footer: const FooterHint('↑/↓ move   Enter select   s search   Esc back'),
+      footer: const FooterHint('↑/↓ move   Enter select   s search   u upcoming   Esc back'),
     );
   }
 }

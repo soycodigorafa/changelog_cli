@@ -66,6 +66,8 @@ lib/src/
   formatter.dart              renders ChangelogEntry list as text or markdown
   time_range.dart             parseTimeRange(): "day"/"2 weeks"/"365 days"/"1 year"/"max" -> Duration?
   search.dart                 searchAcrossTags(): which tag (any type) shipped a matching PR
+  upcoming.dart                buildUpcomingByType(): per-type "latest tag..HEAD" PR titles —
+                               what would ship next if a tag were cut right now
   cache.dart                  ChangelogCache: on-disk PR-titles-per-tag cache, pure file I/O;
                                plus last_full_sync.json helpers
   sync.dart                   buildChangelogEntryAtCached / syncApp / syncAll: cache-first
@@ -81,12 +83,16 @@ lib/src/
                                owns the one shared "last full sync" timestamp every screen shows
     app_picker.dart           Screen 1 — `Sync all apps` (always first) or pick an app
     type_picker.dart          Screen 2 — pick a tag type (derived from that app's real tags),
-                               or the `Search` entry to jump to search_view.dart instead
+                               or the `Search`/`Upcoming` entries to jump to search_view.dart /
+                               upcoming_view.dart instead
     changelog_view.dart       Screen 3 — tag list (recent 5, `f` fetches more) then, per selected
                                tag, a lazily-computed scrollable changelog; `/` filters by ticket
                                number or `[tag]`, `s` free-text searches the full PR title
     search_view.dart          Alt screen 3 — type a query, pick a time range, see every tag
                                (any type) whose PR diff matched
+    upcoming_view.dart        Alt screen 3 — per tag type, PR titles merged since that type's
+                               own latest tag up to HEAD; `c` copies all raw titles at once;
+                               never reads/writes the cache (see Caching internals below)
     sync_view.dart             Reachable from `Sync all apps` — progress bar + "Scanning..."
                                line while syncAll runs; any key returns once done
 
@@ -112,6 +118,8 @@ test/
   time_range_test.dart        parseTimeRange() unit/count/"max" parsing
   search_test.dart            grouping by exact type, "within" cutoff, typeFilter, no-match,
                                cache-first reads
+  upcoming_test.dart          per-type latest-tag selection, zero-tag types skipped, HEAD
+                               passthrough, empty-diff handling
   cache_test.dart             load/save round-trip, missing/corrupt file, no-op save,
                                last-full-sync timestamp round-trip
   sync_test.dart               syncApp backfills once then no-ops, syncAll covers every app,
@@ -237,6 +245,10 @@ or "Not synced yet". There's no live git recheck behind that line — tags
 could have changed since — so its color is a freshness signal based on how long ago the last
 full sync completed, not proof the cache is current: green within 12 hours, yellow within 3
 days, red beyond that (or if a sync has never completed).
+
+The TUI's `Upcoming` screen (`lib/src/tui/upcoming_view.dart`) deliberately bypasses this cache
+entirely — its `latestTag..HEAD` range changes on every new commit, so caching it under any key
+would go stale immediately. It always calls `GitClient.prTitlesBetween` fresh.
 
 ## Testing
 

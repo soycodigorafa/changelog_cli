@@ -21,7 +21,7 @@ chlog
 
 `chlog` operates on whichever monorepo checkout you run it from.
 
-Pick an app → `Sync all apps` (first run) → browse a tag or `Search` to see PR changelogs.
+Pick an app → `Sync all apps` (first run) → browse a tag, `Search`, or `Upcoming` to see PR changelogs.
 
 Every screen shows a status line — "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync
 from the app picker" — and the app picker's first row is always
@@ -48,11 +48,21 @@ use `←`/`→` to pick how far back to look (`day`/`week`/`month`/`year`/`max`,
 `Enter` to search. Results are grouped by exact tag type; `Esc` from the results goes back to the
 query (so you can widen the range and re-run without retyping).
 
+The type picker also lists an `Upcoming` entry (`u` jumps there directly, mirroring `s` for
+`Search`): pick it to see every PR merged since each tag type's own latest tag, up to right now
+— i.e. what would ship in that type's next release if one were cut immediately. Every tag type
+that exists for the app gets its own section, headed by that type's latest tag; a type with no
+tags at all is omitted, since there's nothing to compare against. Keys: `↑`/`↓`/`PgUp`/`PgDn`
+scroll, `c` copies every listed PR title at once (raw titles, one per line, no bullets or
+headers — for pasting straight into a release note draft), `Esc` back to the type picker, `q`
+quit. This screen is always computed live from git, never from the on-disk cache — the range it
+shows changes on every new commit, so it's never stale by design.
+
 Every PR-title lookup (browsing a tag, or `Search`) reads from the on-disk cache first and
 writes anything newly computed back into it, so the second time you look at the same tag it's
 instant.
 
-On the changelog detail and search-results screens, click-and-drag over the PR titles to select
+On the changelog detail, search-results, and Upcoming screens, click-and-drag over the PR titles to select
 text — releasing the mouse copies the selection to your system clipboard (via your terminal's
 OSC 52 support, which iTerm2, Terminal.app, WezTerm, Alacritty, and tmux all have).
 
