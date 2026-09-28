@@ -3,9 +3,13 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 class AppEntry {
-  AppEntry({required this.folderName, required this.tagFormat, required this.displayName});
+  AppEntry({
+    required this.folderName,
+    required this.tagFormat,
+    required this.displayName,
+  });
 
-  /// The apps/<folderName> directory name, e.g. `zz_sample`.
+  /// The apps/&lt;folderName&gt; directory name, e.g. `zz_sample`.
   final String folderName;
 
   /// Tag-prefix form used inside git tags, e.g. `ZZ_Sample`. Matches the
@@ -22,7 +26,9 @@ String tagFormatFor(String folderName) {
   final parts = folderName.split('_');
   final country = parts.first.toUpperCase();
   final rest = parts.skip(1).join('_');
-  final name = rest.isEmpty ? '' : rest[0].toUpperCase() + rest.substring(1).toLowerCase();
+  final name = rest.isEmpty
+      ? ''
+      : rest[0].toUpperCase() + rest.substring(1).toLowerCase();
   return name.isEmpty ? country : '${country}_$name';
 }
 

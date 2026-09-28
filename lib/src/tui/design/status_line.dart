@@ -3,7 +3,7 @@ import 'package:nocterm/nocterm.dart';
 import 'theme.dart';
 
 /// "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync from the
-/// app picker", shown near the top of every screen.
+/// app picker", shown on the app picker, the first screen a user sees.
 /// There's no live re-check of git here — [lastFullSyncAt] is just the
 /// timestamp of the last completed full sync — so the color is a freshness
 /// signal based on how long ago that was, not proof the tags are current:

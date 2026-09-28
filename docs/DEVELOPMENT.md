@@ -59,15 +59,21 @@ arguments launches the TUI, any arguments switch to flag-driven, scriptable outp
 bin/changelog.dart          entrypoint: dispatch to TUI (no args) or flag-driven print (args)
 
 lib/src/
-  git_client.dart            GitClient interface + ProcessGitClient (shells out to `git`)
+  git_client.dart            GitClient interface + ProcessGitClient (shells out to `git`);
+                               PrMergeInfo pairs a PR title with its merge date, returned by
+                               prDetailsBetween() alongside the plain-string prTitlesBetween()
   app_registry.dart          discoverApps(): scans apps/*/version.yaml, derives tagFormat
   tag_info.dart               TagInfo: parses one tag into kind/subtype/version/build
-  changelog.dart              loadTags / buildChangelog / filterByTicketPrefix
+  changelog.dart              loadTags / buildChangelog / filterByTicketPrefix;
+                               matchesTicketOrTagQuery() is filterByQuery()'s per-title rule,
+                               exposed for callers (e.g. upcoming_view.dart) without a
+                               ChangelogEntry to wrap titles in
   formatter.dart              renders ChangelogEntry list as text or markdown
   time_range.dart             parseTimeRange(): "day"/"2 weeks"/"365 days"/"1 year"/"max" -> Duration?
   search.dart                 searchAcrossTags(): which tag (any type) shipped a matching PR
-  upcoming.dart                buildUpcomingByType(): per-type "latest tag..HEAD" PR titles —
-                               what would ship next if a tag were cut right now
+  upcoming.dart                buildUpcomingByType(): per-type "latest tag..HEAD" PRs (each a
+                               PrMergeInfo, title + merge date) — what would ship next if a tag
+                               were cut right now
   cache.dart                  ChangelogCache: on-disk PR-titles-per-tag cache, pure file I/O;
                                plus last_full_sync.json helpers
   sync.dart                   buildChangelogEntryAtCached / syncApp / syncAll: cache-first
@@ -90,9 +96,13 @@ lib/src/
                                number or `[tag]`, `s` free-text searches the full PR title
     search_view.dart          Alt screen 3 — type a query, pick a time range, see every tag
                                (any type) whose PR diff matched
-    upcoming_view.dart        Alt screen 3 — per tag type, PR titles merged since that type's
-                               own latest tag up to HEAD; `c` copies all raw titles at once;
-                               never reads/writes the cache (see Caching internals below)
+    upcoming_view.dart        Alt screen 3 — per tag type (divider-separated, each headed by a
+                               pending-change count and a "since <tag> (cut <date>, <relative>)"
+                               line), PRs merged since that type's own latest tag up to HEAD,
+                               each shown with its own merge date + relative age; `/` filters by
+                               ticket number or [tag] per section; `c` copies all currently-listed
+                               raw titles at once (no dates); never reads/writes the cache (see
+                               Caching internals below)
     sync_view.dart             Reachable from `Sync all apps` — progress bar + "Scanning..."
                                line while syncAll runs; any key returns once done
 
@@ -101,8 +111,13 @@ lib/src/
                                styling primitives or Component-returning `_build*()` helpers
       theme.dart                 AppColors / AppSpacing — the one place styling constants live
       screen_scaffold.dart       ScreenScaffold: bordered frame + header/divider/body/footer
-      status_line.dart          StatusLine: "Last sync: ..." / "Not synced yet" line shown on
-                                 every screen, colored by sync freshness
+      screen_header.dart        ScreenHeader: title + an optional injected second line (e.g.
+                                 StatusLine on the app picker, a query summary on search
+                                 results) — every screen's header composes this, not a bare
+                                 SectionHeader/Column
+      status_line.dart          StatusLine: "Last sync: ..." / "Not synced yet" line, shown
+                                 only on the app picker (the first screen), colored by sync
+                                 freshness
       pr_title_section.dart     PrTitleSection: tag headline + PR titles, used by
                                  changelog_view.dart and search_view.dart
       selectable_row.dart, section_header.dart, footer_hint.dart, error_text.dart,
@@ -240,7 +255,7 @@ progress bar and a `Scanning... <app> <tag>` line.
 
 Both the CLI and TUI sync paths record one shared timestamp
 (`local_tools/changelog_cli/.cache/last_full_sync.json`) when a full (uncanceled) sync finishes.
-Every TUI screen's status line (`design/status_line.dart`) reads it and shows "Last sync: <date>"
+The app picker's status line (`design/status_line.dart`) reads it and shows "Last sync: <date>"
 or "Not synced yet". There's no live git recheck behind that line — tags
 could have changed since — so its color is a freshness signal based on how long ago the last
 full sync completed, not proof the cache is current: green within 12 hours, yellow within 3

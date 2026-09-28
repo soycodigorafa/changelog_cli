@@ -33,6 +33,7 @@ class SyncView extends StatefulComponent {
 
 class _SyncViewState extends State<SyncView> {
   final SyncController _controller = SyncController();
+  final ScrollController _scrollController = ScrollController();
 
   int completed = 0;
   int total = 0;
@@ -121,13 +122,13 @@ class _SyncViewState extends State<SyncView> {
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: _onKeyEvent,
-      header: const SectionHeader('Syncing all apps'),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      header: const ScreenHeader(title: 'Syncing all apps'),
+      body: CopyableScrollBody(
+        controller: _scrollController,
         children: [
           if (!done) ...[
             if (total > 0)
-              FooterHint(
+              BodyText(
                 '$alreadyCached of $total tags already cached — syncing the remaining '
                 '${total - alreadyCached}...',
               ),

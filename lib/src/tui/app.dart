@@ -15,8 +15,8 @@ import 'upcoming_view.dart';
 
 /// Root of the interactive TUI: a screen stack (app -> type -> changelog,
 /// or app -> sync) held as plain state, no [Navigator] — simple enough not
-/// to need it. Also owns the one shared "last full sync" timestamp so every
-/// screen can show the same sync-status line.
+/// to need it. Also owns the "last full sync" timestamp shown on the app
+/// picker, the first screen.
 class ChangelogTuiRoot extends StatefulComponent {
   const ChangelogTuiRoot({super.key, required this.apps, required this.git, required this.cacheDir});
 
@@ -72,7 +72,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
       return TypePicker(
         app: selectedApp!,
         git: component.git,
-        lastFullSyncAt: lastFullSyncAt,
         onSelected: (type) => setState(() => selectedType = type),
         onBack: () => setState(() => selectedApp = null),
       );
@@ -82,7 +81,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
         app: selectedApp!,
         git: component.git,
         cacheDir: component.cacheDir,
-        lastFullSyncAt: lastFullSyncAt,
         onBack: () => setState(() => selectedType = null),
       );
     }
@@ -90,7 +88,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
       return UpcomingView(
         app: selectedApp!,
         git: component.git,
-        lastFullSyncAt: lastFullSyncAt,
         onBack: () => setState(() => selectedType = null),
       );
     }
@@ -99,7 +96,6 @@ class _ChangelogTuiRootState extends State<ChangelogTuiRoot> {
       git: component.git,
       typeFilter: selectedType!,
       cacheDir: component.cacheDir,
-      lastFullSyncAt: lastFullSyncAt,
       onBack: () => setState(() => selectedType = null),
     );
   }

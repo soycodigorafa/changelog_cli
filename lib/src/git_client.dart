@@ -1,5 +1,14 @@
 import 'dart:io';
 
+/// One merged PR: its title (resolved the same squash-vs-merge-commit way as
+/// [GitClient.prTitlesBetween]) paired with when it merged.
+class PrMergeInfo {
+  PrMergeInfo({required this.title, required this.mergedAt});
+
+  final String title;
+  final DateTime mergedAt;
+}
+
 /// Thin wrapper over the `git` CLI. Abstracted behind this class (rather than
 /// calling `Process.run` directly from changelog logic) so tests can supply a
 /// fake implementation instead of shelling out.
@@ -16,6 +25,10 @@ abstract class GitClient {
   /// squash-vs-merge-commit logic from scripts/generate-ir-tags.sh /
   /// generate-rc-tags.sh. One git call regardless of how many commits match.
   Future<List<String>> prTitlesBetween(String from, String to);
+
+  /// Same PRs as [prTitlesBetween], each paired with when it merged — needed
+  /// wherever a PR's recency matters (e.g. the TUI's Upcoming screen).
+  Future<List<PrMergeInfo>> prDetailsBetween(String from, String to);
 }
 
 class ProcessGitClient implements GitClient {
@@ -23,9 +36,10 @@ class ProcessGitClient implements GitClient {
 
   final String? workingDirectory;
 
-  /// Separates hash/subject/body within one commit record in [prTitlesBetween]'s
-  /// custom `git log` format. Chosen because it can never appear in a real
-  /// commit message, unlike `\n` (which the body itself may contain).
+  /// Separates hash/date/subject/body within one commit record in
+  /// [_prRecords]'s custom `git log` format. Chosen because it can never
+  /// appear in a real commit message, unlike `\n` (which the body itself may
+  /// contain).
   static const _unitSep = '\x1f';
 
   /// Separates one commit record from the next.
@@ -61,11 +75,24 @@ class ProcessGitClient implements GitClient {
 
   @override
   Future<List<String>> prTitlesBetween(String from, String to) async {
+    final records = await _prRecords(from, to);
+    return records.map((r) => r.title).toList();
+  }
+
+  @override
+  Future<List<PrMergeInfo>> prDetailsBetween(String from, String to) async {
+    final records = await _prRecords(from, to);
+    return records.map((r) => PrMergeInfo(title: r.title, mergedAt: r.mergedAt)).toList();
+  }
+
+  /// Shared by [prTitlesBetween]/[prDetailsBetween] so the `git log` call and
+  /// the squash-vs-merge-commit title logic live in exactly one place.
+  Future<List<_PrRecord>> _prRecords(String from, String to) async {
     final result = await _run([
       'log',
       '$from..$to',
       '-E',
-      '--format=%H$_unitSep%s$_unitSep%b$_recordSep',
+      '--format=%H$_unitSep%cI$_unitSep%s$_unitSep%b$_recordSep',
       r'--grep=\(#[0-9]+\)$',
       '--grep=^Merge pull request',
     ]);
@@ -74,21 +101,29 @@ class ProcessGitClient implements GitClient {
         .map((r) => r.trim())
         .where((r) => r.isNotEmpty);
 
-    final titles = <String>[];
+    final parsed = <_PrRecord>[];
     for (final record in records) {
       final parts = record.split(_unitSep);
-      final subject = parts.length > 1 ? parts[1] : '';
-      final body = parts.length > 2 ? parts[2] : '';
+      final mergedAt = DateTime.parse(parts[1]);
+      final subject = parts.length > 2 ? parts[2] : '';
+      final body = parts.length > 3 ? parts[3] : '';
       if (subject.startsWith('Merge pull request')) {
         final firstLine = body
             .split('\n')
             .map((l) => l.trim())
             .firstWhere((l) => l.isNotEmpty, orElse: () => subject);
-        titles.add(firstLine);
+        parsed.add(_PrRecord(title: firstLine, mergedAt: mergedAt));
       } else {
-        titles.add(subject);
+        parsed.add(_PrRecord(title: subject, mergedAt: mergedAt));
       }
     }
-    return titles;
+    return parsed;
   }
+}
+
+class _PrRecord {
+  _PrRecord({required this.title, required this.mergedAt});
+
+  final String title;
+  final DateTime mergedAt;
 }

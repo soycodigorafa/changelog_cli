@@ -1,7 +1,6 @@
 import 'package:nocterm/nocterm.dart';
 
 import '../app_registry.dart';
-import '../cache.dart';
 import 'design/design.dart';
 
 class AppPicker extends StatefulComponent {
@@ -23,6 +22,8 @@ class AppPicker extends StatefulComponent {
 }
 
 class _AppPickerState extends State<AppPicker> {
+  final ScrollController _scrollController = ScrollController();
+
   int selectedIndex = 0;
 
   /// Row 0 is always `Sync all apps`; app entries follow, shifted by one.
@@ -60,19 +61,19 @@ class _AppPickerState extends State<AppPicker> {
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: _onKeyEvent,
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader('Select an app'),
-          StatusLine(lastFullSyncAt: component.lastFullSyncAt),
-        ],
+      header: ScreenHeader(
+        title: 'Select an app',
+        extra: StatusLine(lastFullSyncAt: component.lastFullSyncAt),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: CopyableScrollBody(
+        controller: _scrollController,
         children: [
           SelectableRow(label: 'Sync all apps', selected: selectedIndex == 0),
           for (var i = 0; i < component.apps.length; i++)
-            SelectableRow(label: component.apps[i].folderName, selected: i + 1 == selectedIndex),
+            SelectableRow(
+              label: component.apps[i].folderName,
+              selected: i + 1 == selectedIndex,
+            ),
         ],
       ),
       footer: const FooterHint('↑/↓ move   Enter select   q quit'),

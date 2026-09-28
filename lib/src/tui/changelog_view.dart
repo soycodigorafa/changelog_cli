@@ -22,7 +22,6 @@ class ChangelogView extends StatefulComponent {
     required this.git,
     required this.typeFilter,
     required this.cacheDir,
-    required this.lastFullSyncAt,
     required this.onBack,
   });
 
@@ -30,7 +29,6 @@ class ChangelogView extends StatefulComponent {
   final GitClient git;
   final String typeFilter;
   final Directory cacheDir;
-  final DateTime? lastFullSyncAt;
   final void Function() onBack;
 
   @override
@@ -192,16 +190,21 @@ class _ChangelogViewState extends State<ChangelogView> {
     return false;
   }
 
-  String _headerText() {
+  /// The live query-input line shown in the body while typing or once a
+  /// filter/search is active; `null` when there's nothing to show.
+  String? _queryLineText() {
     if (editingQuery) {
       final label = queryMode == _QueryMode.tagFilter ? 'Filter (ticket # or [tag])' : 'Search PR titles';
       return '$label: $queryText';
     }
-    final active = queryText.isEmpty
-        ? ''
-        : '   [${queryMode == _QueryMode.tagFilter ? 'filter' : 'search'}: $queryText]';
-    return '${component.app.folderName} [${component.typeFilter}]   '
-        '↑/↓/PgUp/PgDn scroll   / filter   s search   drag to copy   Esc back to list   q quit$active';
+    if (queryText.isEmpty) return null;
+    final label = queryMode == _QueryMode.tagFilter ? 'filter' : 'search';
+    return '[$label: $queryText]';
+  }
+
+  String _detailFooterText() {
+    if (editingQuery) return 'Type to edit   Enter confirm   Esc cancel';
+    return '↑/↓/PgUp/PgDn scroll   / filter   s search   drag to copy   Esc back to list   q quit';
   }
 
   bool _onDetailKeyEvent(KeyboardEvent event) {
@@ -268,7 +271,7 @@ class _ChangelogViewState extends State<ChangelogView> {
 
   @override
   Component build(BuildContext context) {
-    final scaffoldHeader = SectionHeader('${component.app.folderName} [${component.typeFilter}]');
+    final scaffoldHeader = ScreenHeader(title: '${component.app.folderName} [${component.typeFilter}]');
     if (error != null) {
       return ScreenScaffold(
         onKeyEvent: (_) => false,
@@ -312,8 +315,9 @@ class _ChangelogViewState extends State<ChangelogView> {
     if (selectedEntry != null) {
       final entry = selectedEntry!;
       return _TagDetailBody(
-        headerText: _headerText(),
-        lastFullSyncAt: component.lastFullSyncAt,
+        appLabel: '${component.app.folderName} [${component.typeFilter}]',
+        queryLineText: _queryLineText(),
+        footerText: _detailFooterText(),
         tagLabel: '${component.app.displayName} ${entry.tag.versionLabel}-${entry.tag.type}',
         titles: _visiblePrTitles,
         scrollController: _scrollController,
@@ -331,7 +335,7 @@ class _ChangelogViewState extends State<ChangelogView> {
       footerText: _hasMore
           ? '↑/↓ move   Enter view changelog   f fetch $_pageSize more   Esc back   q quit'
           : '↑/↓ move   Enter view changelog   Esc back   q quit',
-      lastFullSyncAt: component.lastFullSyncAt,
+      scrollController: _scrollController,
       onKeyEvent: _onListKeyEvent,
     );
   }
@@ -346,7 +350,7 @@ class _TagListBody extends StatelessComponent {
     required this.visibleTags,
     required this.selectedIndex,
     required this.footerText,
-    required this.lastFullSyncAt,
+    required this.scrollController,
     required this.onKeyEvent,
   });
 
@@ -357,22 +361,16 @@ class _TagListBody extends StatelessComponent {
   final List<TagInfo> visibleTags;
   final int selectedIndex;
   final String footerText;
-  final DateTime? lastFullSyncAt;
+  final ScrollController scrollController;
   final KeyEventHandler onKeyEvent;
 
   @override
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: onKeyEvent,
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader('$appLabel [$typeFilter] — showing $shownCount of $totalCount tags'),
-          StatusLine(lastFullSyncAt: lastFullSyncAt),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      header: ScreenHeader(title: '$appLabel [$typeFilter] — showing $shownCount of $totalCount tags'),
+      body: CopyableScrollBody(
+        controller: scrollController,
         children: [
           for (var i = 0; i < visibleTags.length; i++)
             SelectableRow(
@@ -388,16 +386,18 @@ class _TagListBody extends StatelessComponent {
 
 class _TagDetailBody extends StatelessComponent {
   const _TagDetailBody({
-    required this.headerText,
-    required this.lastFullSyncAt,
+    required this.appLabel,
+    required this.queryLineText,
+    required this.footerText,
     required this.tagLabel,
     required this.titles,
     required this.scrollController,
     required this.onKeyEvent,
   });
 
-  final String headerText;
-  final DateTime? lastFullSyncAt;
+  final String appLabel;
+  final String? queryLineText;
+  final String footerText;
   final String tagLabel;
   final List<String> titles;
   final ScrollController scrollController;
@@ -407,18 +407,18 @@ class _TagDetailBody extends StatelessComponent {
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: onKeyEvent,
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          FooterHint(headerText),
-          StatusLine(lastFullSyncAt: lastFullSyncAt),
-        ],
-      ),
+      header: ScreenHeader(title: appLabel),
       body: CopyableScrollBody(
         controller: scrollController,
-        children: [PrTitleSection(tagLabel: tagLabel, titles: titles)],
+        children: [
+          if (queryLineText != null) ...[
+            BodyText(queryLineText!),
+            AppSpacing.gap,
+          ],
+          PrTitleSection(tagLabel: tagLabel, titles: titles),
+        ],
       ),
-      footer: const FooterHint(''),
+      footer: FooterHint(footerText),
     );
   }
 }

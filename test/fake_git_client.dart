@@ -5,12 +5,16 @@ class FakeGitClient implements GitClient {
   FakeGitClient({
     this.tags = const [],
     this.prTitles = const {},
+    this.prDetails = const {},
   });
 
   final List<MapEntry<String, DateTime>> tags;
 
   /// Keyed by `"$from..$to"`.
   final Map<String, List<String>> prTitles;
+
+  /// Keyed by `"$from..$to"`.
+  final Map<String, List<PrMergeInfo>> prDetails;
 
   bool fetched = false;
 
@@ -24,4 +28,7 @@ class FakeGitClient implements GitClient {
 
   @override
   Future<List<String>> prTitlesBetween(String from, String to) async => prTitles['$from..$to'] ?? const [];
+
+  @override
+  Future<List<PrMergeInfo>> prDetailsBetween(String from, String to) async => prDetails['$from..$to'] ?? const [];
 }

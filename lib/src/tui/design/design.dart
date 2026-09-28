@@ -10,6 +10,7 @@ export 'footer_hint.dart';
 export 'loading_text.dart';
 export 'pr_title_section.dart';
 export 'progress_bar.dart';
+export 'screen_header.dart';
 export 'screen_scaffold.dart';
 export 'section_header.dart';
 export 'selectable_row.dart';

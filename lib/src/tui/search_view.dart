@@ -18,14 +18,12 @@ class SearchView extends StatefulComponent {
     required this.app,
     required this.git,
     required this.cacheDir,
-    required this.lastFullSyncAt,
     required this.onBack,
   });
 
   final AppEntry app;
   final GitClient git;
   final Directory cacheDir;
-  final DateTime? lastFullSyncAt;
   final void Function() onBack;
 
   @override
@@ -153,7 +151,7 @@ class _SearchViewState extends State<SearchView> {
     if (loading) {
       return ScreenScaffold(
         onKeyEvent: (_) => false,
-        header: SectionHeader('${component.app.folderName} — search PR titles'),
+        header: ScreenHeader(title: '${component.app.folderName} — search PR titles'),
         body: const LoadingText('Searching...'),
         footer: const FooterHint(''),
       );
@@ -165,7 +163,6 @@ class _SearchViewState extends State<SearchView> {
         queryText: queryText,
         rangeLabel: _rangeLabel,
         matches: matches,
-        lastFullSyncAt: component.lastFullSyncAt,
         scrollController: _scrollController,
         onKeyEvent: _onResultsKeyEvent,
       );
@@ -175,7 +172,7 @@ class _SearchViewState extends State<SearchView> {
       queryText: queryText,
       rangeLabel: _rangeLabel,
       error: error,
-      lastFullSyncAt: component.lastFullSyncAt,
+      scrollController: _scrollController,
       onKeyEvent: _onFormKeyEvent,
     );
   }
@@ -187,7 +184,7 @@ class _SearchFormBody extends StatelessComponent {
     required this.queryText,
     required this.rangeLabel,
     required this.error,
-    required this.lastFullSyncAt,
+    required this.scrollController,
     required this.onKeyEvent,
   });
 
@@ -195,22 +192,16 @@ class _SearchFormBody extends StatelessComponent {
   final String queryText;
   final String rangeLabel;
   final String? error;
-  final DateTime? lastFullSyncAt;
+  final ScrollController scrollController;
   final KeyEventHandler onKeyEvent;
 
   @override
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: onKeyEvent,
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader('$appLabel — search PR titles'),
-          StatusLine(lastFullSyncAt: lastFullSyncAt),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      header: ScreenHeader(title: '$appLabel — search PR titles'),
+      body: CopyableScrollBody(
+        controller: scrollController,
         children: [
           BodyText('Query: $queryText'),
           BodyText('Range: $rangeLabel   (←/→ to change)'),
@@ -228,7 +219,6 @@ class _SearchResultsBody extends StatelessComponent {
     required this.queryText,
     required this.rangeLabel,
     required this.matches,
-    required this.lastFullSyncAt,
     required this.scrollController,
     required this.onKeyEvent,
   });
@@ -237,7 +227,6 @@ class _SearchResultsBody extends StatelessComponent {
   final String queryText;
   final String rangeLabel;
   final List<SearchMatch> matches;
-  final DateTime? lastFullSyncAt;
   final ScrollController scrollController;
   final KeyEventHandler onKeyEvent;
 
@@ -245,31 +234,26 @@ class _SearchResultsBody extends StatelessComponent {
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: onKeyEvent,
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      header: ScreenHeader(
+        title: appLabel,
+        extra: BodyText('query: "$queryText"   range: $rangeLabel'),
+      ),
+      body: CopyableScrollBody(
+        controller: scrollController,
         children: [
-          FooterHint(
-            '$appLabel   query: "$queryText"   range: $rangeLabel   '
-            '↑/↓/PgUp/PgDn scroll   drag to copy   Esc edit query   q quit',
-          ),
-          StatusLine(lastFullSyncAt: lastFullSyncAt),
+          if (matches.isEmpty)
+            BodyText('No match for "$queryText" within $rangeLabel. Try a wider range or a different query.')
+          else
+            for (final match in matches) ...[
+              PrTitleSection(
+                tagLabel: '${match.type} ${match.tag.versionLabel} (${match.tag.rawTag})',
+                titles: match.matchedTitles,
+              ),
+              AppSpacing.gap,
+            ],
         ],
       ),
-      body: matches.isEmpty
-          ? BodyText('No match for "$queryText" within $rangeLabel. Try a wider range or a different query.')
-          : CopyableScrollBody(
-              controller: scrollController,
-              children: [
-                for (final match in matches) ...[
-                  PrTitleSection(
-                    tagLabel: '${match.type} ${match.tag.versionLabel} (${match.tag.rawTag})',
-                    titles: match.matchedTitles,
-                  ),
-                  AppSpacing.gap,
-                ],
-              ],
-            ),
-      footer: const FooterHint(''),
+      footer: const FooterHint('↑/↓/PgUp/PgDn scroll   drag to copy   Esc edit query   q quit'),
     );
   }
 }

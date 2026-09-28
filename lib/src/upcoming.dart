@@ -7,11 +7,11 @@ import 'tag_info.dart';
 /// latest tag, up to `HEAD` — i.e. what would land in that type's next tag
 /// if one were cut right now.
 class UpcomingSection {
-  UpcomingSection({required this.type, required this.sinceTag, required this.prTitles});
+  UpcomingSection({required this.type, required this.sinceTag, required this.prs});
 
   final String type;
   final TagInfo sinceTag;
-  final List<String> prTitles;
+  final List<PrMergeInfo> prs;
 }
 
 /// For every tag type that exists for [app], finds that type's own latest
@@ -33,8 +33,8 @@ Future<List<UpcomingSection>> buildUpcomingByType(GitClient git, AppEntry app) a
   final sections = <UpcomingSection>[];
   for (final type in byType.keys.toList()..sort()) {
     final latest = byType[type]!.last;
-    final titles = await git.prTitlesBetween(latest.rawTag, 'HEAD');
-    sections.add(UpcomingSection(type: type, sinceTag: latest, prTitles: titles));
+    final prs = await git.prDetailsBetween(latest.rawTag, 'HEAD');
+    sections.add(UpcomingSection(type: type, sinceTag: latest, prs: prs));
   }
   return sections;
 }

@@ -70,6 +70,20 @@ void main() {
     expect(filtered.last.prTitles, ['TASK-1 something']);
   });
 
+  test('matchesTicketOrTagQuery matches a ticket number', () {
+    expect(matchesTicketOrTagQuery('TASK-1234-[FE] some title (#101)', 'TASK'), isTrue);
+    expect(matchesTicketOrTagQuery('TASK-1234-[FE] some title (#101)', 'task'), isTrue);
+  });
+
+  test('matchesTicketOrTagQuery matches a [TAG] group', () {
+    expect(matchesTicketOrTagQuery('TASK-1234-[FE] some title (#101)', 'FE'), isTrue);
+    expect(matchesTicketOrTagQuery('[NO TICKET] [BR] some title', 'br'), isTrue);
+  });
+
+  test('matchesTicketOrTagQuery returns false when neither matches', () {
+    expect(matchesTicketOrTagQuery('TASK-1234-[FE] some title (#101)', 'BE'), isFalse);
+  });
+
   test('formatChangelog renders the manual-changelog style, including empty tags', () async {
     final git = FakeGitClient(
       tags: [MapEntry(rcOld, d(1)), MapEntry(rcNew, d(2))],

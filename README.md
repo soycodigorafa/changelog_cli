@@ -23,8 +23,8 @@ chlog
 
 Pick an app → `Sync all apps` (first run) → browse a tag, `Search`, or `Upcoming` to see PR changelogs.
 
-Every screen shows a status line — "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync
-from the app picker" — and the app picker's first row is always
+The app picker shows a status line — "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync
+from the app picker" — and its first row is always
 `Sync all apps`: pick it to run a full sync with a live progress bar and a `Scanning... <app>
 <tag>` line. While it's running, `p` pauses/resumes and `Esc` cancels — either way, anything
 already cached before pausing/canceling is kept (nothing is redone). When it finishes (or is
@@ -51,12 +51,19 @@ query (so you can widen the range and re-run without retyping).
 The type picker also lists an `Upcoming` entry (`u` jumps there directly, mirroring `s` for
 `Search`): pick it to see every PR merged since each tag type's own latest tag, up to right now
 — i.e. what would ship in that type's next release if one were cut immediately. Every tag type
-that exists for the app gets its own section, headed by that type's latest tag; a type with no
-tags at all is omitted, since there's nothing to compare against. Keys: `↑`/`↓`/`PgUp`/`PgDn`
-scroll, `c` copies every listed PR title at once (raw titles, one per line, no bullets or
-headers — for pasting straight into a release note draft), `Esc` back to the type picker, `q`
-quit. This screen is always computed live from git, never from the on-disk cache — the range it
-shows changes on every new commit, so it's never stale by design.
+that exists for the app gets its own section, separated by a divider, headed by a bold `<TYPE> —
+N pending changes` (or `— up to date`) line and a `since <tag> (cut <date>, <relative age>)` line
+so the tag boundary is unambiguous; a type with no tags at all is omitted, since there's nothing
+to compare against. PR titles within a section are newest-first (same as `git log`'s default
+order) and each one shows its own merge date and relative age (e.g. `2026-09-20 (4 days ago)`),
+so it's clear at a glance how recent — or stale — any given change is. Keys: `↑`/`↓`/`PgUp`/`PgDn`
+scroll, `/` filters
+by ticket number or `[tag]` (same matching as the changelog detail screen's `/`, applied within
+each section — a section with no matches is hidden), `c` copies every currently-listed PR title
+at once (raw titles, one per line, no bullets or headers — for pasting straight into a release
+note draft; if a filter is active, only the filtered titles are copied), `Esc` back to the type
+picker, `q` quit. This screen is always computed live from git, never from the on-disk cache —
+the range it shows changes on every new commit, so it's never stale by design.
 
 Every PR-title lookup (browsing a tag, or `Search`) reads from the on-disk cache first and
 writes anything newly computed back into it, so the second time you look at the same tag it's

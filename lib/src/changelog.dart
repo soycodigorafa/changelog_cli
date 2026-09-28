@@ -89,20 +89,29 @@ String stripBracketTags(String prTitle) {
   return prTitle.replaceAll(RegExp(r'-?\[[^\]]+\]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
+/// True if [title] matches [query] as a ticket number (`<query>-123`,
+/// case-insensitive) or a `[TAG]` group containing [query]
+/// (case-insensitive), e.g. `FE` matches both `TASK-1234-[FE]...` and a bare
+/// `[FE]` tag. The matching core of [filterByQuery], exposed so callers that
+/// don't have a [ChangelogEntry] (e.g. the TUI's Upcoming screen, which
+/// works with raw PR titles) can reuse the same rule.
+bool matchesTicketOrTagQuery(String title, String query) {
+  final ticketPattern = RegExp(RegExp.escape(query) + r'-\d+', caseSensitive: false);
+  if (ticketPattern.hasMatch(title)) return true;
+  final lowerQuery = query.toLowerCase();
+  return extractBracketTags(title).any((tag) => tag.toLowerCase().contains(lowerQuery));
+}
+
 /// Keeps only PR titles matching [query]: either a ticket number
 /// (`<query>-123`, case-insensitive) or a `[TAG]` group containing [query]
 /// (case-insensitive), e.g. `FE` matches both `TASK-1234-[FE]...` and a bare
 /// `[FE]` tag.
 List<ChangelogEntry> filterByQuery(List<ChangelogEntry> entries, String query) {
-  final ticketPattern = RegExp(RegExp.escape(query) + r'-\d+', caseSensitive: false);
-  final lowerQuery = query.toLowerCase();
-  bool matches(String title) {
-    if (ticketPattern.hasMatch(title)) return true;
-    return extractBracketTags(title).any((tag) => tag.toLowerCase().contains(lowerQuery));
-  }
-
   return entries
-      .map((e) => ChangelogEntry(tag: e.tag, prTitles: e.prTitles.where(matches).toList()))
+      .map((e) => ChangelogEntry(
+            tag: e.tag,
+            prTitles: e.prTitles.where((t) => matchesTicketOrTagQuery(t, query)).toList(),
+          ))
       .toList();
 }
 
