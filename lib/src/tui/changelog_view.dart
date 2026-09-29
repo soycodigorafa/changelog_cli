@@ -11,8 +11,7 @@ import '../tag_info.dart';
 import 'design/design.dart';
 
 /// Screen 3: lists tags for the chosen app/type (cheap — just parsed tag
-/// refs, no PR diffing), most recent first with a "fetch more" action to
-/// reveal older ones in [_pageSize] batches. Selecting a tag lazily computes
+/// refs, no PR diffing), most recent first. Selecting a tag lazily computes
 /// its PR changelog on demand instead of diffing every tag up front, using
 /// the on-disk cache in [cacheDir] first (see `lib/src/cache.dart`).
 class ChangelogView extends StatefulComponent {
@@ -38,13 +37,10 @@ class ChangelogView extends StatefulComponent {
 enum _QueryMode { none, tagFilter, search }
 
 class _ChangelogViewState extends State<ChangelogView> {
-  static const _pageSize = 5;
-
   final ScrollController _scrollController = ScrollController();
 
   List<TagInfo>? tags;
   String? error;
-  int visibleCount = _pageSize;
   int selectedIndex = 0;
 
   ChangelogEntry? selectedEntry;
@@ -71,7 +67,6 @@ class _ChangelogViewState extends State<ChangelogView> {
       final loaded = await loadTags(component.git, component.app, typeFilter: component.typeFilter);
       setState(() {
         tags = loaded;
-        visibleCount = loaded.length < _pageSize ? loaded.length : _pageSize;
       });
     } catch (e) {
       setState(() {
@@ -80,21 +75,8 @@ class _ChangelogViewState extends State<ChangelogView> {
     }
   }
 
-  /// Most recent tags first, capped at [visibleCount].
-  List<TagInfo> get _visibleTags {
-    final all = tags!;
-    final start = all.length - visibleCount;
-    return all.sublist(start < 0 ? 0 : start).reversed.toList();
-  }
-
-  bool get _hasMore => tags != null && visibleCount < tags!.length;
-
-  void _fetchMore() {
-    if (!_hasMore) return;
-    setState(() {
-      visibleCount = (visibleCount + _pageSize).clamp(0, tags!.length);
-    });
-  }
+  /// Most recent tags first.
+  List<TagInfo> get _visibleTags => tags!.reversed.toList();
 
   Future<void> _openTag(TagInfo tag) async {
     final all = tags!;
@@ -163,20 +145,18 @@ class _ChangelogViewState extends State<ChangelogView> {
       setState(() {
         if (selectedIndex < visible.length - 1) selectedIndex++;
       });
+      _scrollController.ensureVisible(itemOffset: selectedIndex.toDouble(), itemExtent: 1.0);
       return true;
     }
     if (event.logicalKey == LogicalKey.arrowUp) {
       setState(() {
         if (selectedIndex > 0) selectedIndex--;
       });
+      _scrollController.ensureVisible(itemOffset: selectedIndex.toDouble(), itemExtent: 1.0);
       return true;
     }
     if (event.logicalKey == LogicalKey.enter) {
       _openTag(visible[selectedIndex]);
-      return true;
-    }
-    if (event.character == 'f') {
-      _fetchMore();
       return true;
     }
     if (event.logicalKey == LogicalKey.escape) {
@@ -328,13 +308,10 @@ class _ChangelogViewState extends State<ChangelogView> {
     return _TagListBody(
       appLabel: component.app.folderName,
       typeFilter: component.typeFilter,
-      shownCount: visible.length,
       totalCount: tags!.length,
       visibleTags: visible,
       selectedIndex: selectedIndex,
-      footerText: _hasMore
-          ? '↑/↓ move   Enter view changelog   f fetch $_pageSize more   Esc back   q quit'
-          : '↑/↓ move   Enter view changelog   Esc back   q quit',
+      footerText: '↑/↓ move   Enter view changelog   Esc back   q quit',
       scrollController: _scrollController,
       onKeyEvent: _onListKeyEvent,
     );
@@ -345,7 +322,6 @@ class _TagListBody extends StatelessComponent {
   const _TagListBody({
     required this.appLabel,
     required this.typeFilter,
-    required this.shownCount,
     required this.totalCount,
     required this.visibleTags,
     required this.selectedIndex,
@@ -356,7 +332,6 @@ class _TagListBody extends StatelessComponent {
 
   final String appLabel;
   final String typeFilter;
-  final int shownCount;
   final int totalCount;
   final List<TagInfo> visibleTags;
   final int selectedIndex;
@@ -368,7 +343,7 @@ class _TagListBody extends StatelessComponent {
   Component build(BuildContext context) {
     return ScreenScaffold(
       onKeyEvent: onKeyEvent,
-      header: ScreenHeader(title: '$appLabel [$typeFilter] — showing $shownCount of $totalCount tags'),
+      header: ScreenHeader(title: '$appLabel [$typeFilter] — $totalCount tags'),
       body: CopyableScrollBody(
         controller: scrollController,
         children: [
@@ -377,6 +352,10 @@ class _TagListBody extends StatelessComponent {
               label: '${visibleTags[i].versionLabel}-${visibleTags[i].type}',
               selected: i == selectedIndex,
             ),
+          if (visibleTags.isNotEmpty) ...[
+            AppSpacing.gap,
+            const FooterHint('— end of list —'),
+          ],
         ],
       ),
       footer: FooterHint(footerText),

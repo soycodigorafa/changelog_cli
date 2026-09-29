@@ -34,12 +34,14 @@ class _AppPickerState extends State<AppPicker> {
       setState(() {
         if (selectedIndex < _optionCount - 1) selectedIndex++;
       });
+      _scrollController.ensureVisible(itemOffset: selectedIndex.toDouble(), itemExtent: 1.0);
       return true;
     }
     if (event.logicalKey == LogicalKey.arrowUp) {
       setState(() {
         if (selectedIndex > 0) selectedIndex--;
       });
+      _scrollController.ensureVisible(itemOffset: selectedIndex.toDouble(), itemExtent: 1.0);
       return true;
     }
     if (event.logicalKey == LogicalKey.enter) {

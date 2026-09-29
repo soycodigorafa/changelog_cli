@@ -1,7 +1,7 @@
 # changelog_cli
 
-A small tool that turns this monorepo's git tags into a changelog, so nobody has to manually
-reassemble "which PRs landed between tag X and tag Y" by hand anymore.
+Turns this monorepo's git tags into a changelog — no more manually figuring out "which PRs
+landed between tag X and tag Y."
 
 ## Install
 
@@ -9,72 +9,107 @@ reassemble "which PRs landed between tag X and tag Y" by hand anymore.
 dart pub global activate --source git https://github.com/soycodigorafa/changelog_cli
 ```
 
-Make sure `~/.pub-cache/bin` is on your `PATH` (pub warns if it isn't). After new changes are
-pushed to this tool's repo, re-run the same command to pick them up — there's no live
-auto-update.
+Make sure `~/.pub-cache/bin` is on your `PATH` (pub warns if it isn't). There's no auto-update —
+re-run the command above whenever the tool itself changes.
 
-## Launch
+## Quick Start
 
 ```bash
 chlog
 ```
 
-`chlog` operates on whichever monorepo checkout you run it from.
+Run it from inside your monorepo checkout, then:
 
-Pick an app → `Sync all apps` (first run) → browse a tag, `Search`, or `Upcoming` to see PR changelogs.
+1. Pick an app.
+2. First time? Pick **Sync all apps** to fetch everything (shows a live progress bar).
+3. Pick a tag type, then a tag — or jump straight to **Search** / **Upcoming**.
+4. Read the PR changelog.
 
-The app picker shows a status line — "Last sync: 2026-09-02 14:32" or "Not synced yet — run Sync
-from the app picker" — and its first row is always
-`Sync all apps`: pick it to run a full sync with a live progress bar and a `Scanning... <app>
-<tag>` line. While it's running, `p` pauses/resumes and `Esc` cancels — either way, anything
-already cached before pausing/canceling is kept (nothing is redone). When it finishes (or is
-canceled) it says `Done.`/`Canceled.` plus a per-app summary, and any key returns you to the
-app picker.
+## Screens
 
-Pick an app → pick a tag type (only types that actually exist for that app are listed) → pick a
-tag → view its changelog. The tag list only shows the 5 most recent tags at first (listing tags
-is cheap; diffing every tag's PRs against its predecessor is not, so that work is deferred).
-Press `f` to reveal 5 more (repeatable back through full history). Selecting a tag (`Enter`) then
-lazily computes and shows the PR titles merged since the *previous* tag — only for that one tag,
-not the whole history. Keys on the tag list: `↑`/`↓` move, `Enter` view changelog, `f` fetch more,
-`Esc` back a screen, `q` quit. Keys on the changelog detail: `↑`/`↓`/`PgUp`/`PgDn` scroll, `/`
-starts a live filter by ticket number or `[tag]`, `s` starts a live free-text search across the
-full PR title (`Enter`/`Esc` to stop editing either one), `Esc` back to the tag list, `q` quit.
+### App picker
 
-The type picker also lists a `Search` entry (and `s` jumps there directly from that screen, no
-need to scroll to it): pick it to ask "which tag (across every type — `IR`, `RC`, `RC_store`,
-`IR_QA`, ...) shipped a PR matching this?" instead of browsing one tag at a time. Type a query,
-use `←`/`→` to pick how far back to look (`day`/`week`/`month`/`year`/`max`, defaults to `max`),
-`Enter` to search. Results are grouped by exact tag type; `Esc` from the results goes back to the
-query (so you can widen the range and re-run without retyping).
+First row is always **Sync all apps** — runs a full sync with a live `Scanning... <app> <tag>`
+progress bar. Anything already synced is cached, so pausing or canceling never loses work.
 
-The type picker also lists an `Upcoming` entry (`u` jumps there directly, mirroring `s` for
-`Search`): pick it to see every PR merged since each tag type's own latest tag, up to right now
-— i.e. what would ship in that type's next release if one were cut immediately. Every tag type
-that exists for the app gets its own section, separated by a divider, headed by a bold `<TYPE> —
-N pending changes` (or `— up to date`) line and a `since <tag> (cut <date>, <relative age>)` line
-so the tag boundary is unambiguous; a type with no tags at all is omitted, since there's nothing
-to compare against. PR titles within a section are newest-first (same as `git log`'s default
-order) and each one shows its own merge date and relative age (e.g. `2026-09-20 (4 days ago)`),
-so it's clear at a glance how recent — or stale — any given change is. Keys: `↑`/`↓`/`PgUp`/`PgDn`
-scroll, `/` filters
-by ticket number or `[tag]` (same matching as the changelog detail screen's `/`, applied within
-each section — a section with no matches is hidden), `c` copies every currently-listed PR title
-at once (raw titles, one per line, no bullets or headers — for pasting straight into a release
-note draft; if a filter is active, only the filtered titles are copied), `Esc` back to the type
-picker, `q` quit. This screen is always computed live from git, never from the on-disk cache —
-the range it shows changes on every new commit, so it's never stale by design.
+| Key | Action |
+|---|---|
+| `p` | pause / resume sync |
+| `Esc` | cancel sync |
 
-Every PR-title lookup (browsing a tag, or `Search`) reads from the on-disk cache first and
-writes anything newly computed back into it, so the second time you look at the same tag it's
-instant.
+### Tag type picker
 
-On the changelog detail, search-results, and Upcoming screens, click-and-drag over the PR titles to select
-text — releasing the mouse copies the selection to your system clipboard (via your terminal's
-OSC 52 support, which iTerm2, Terminal.app, WezTerm, Alacritty, and tmux all have).
+Only shows types that actually exist for the chosen app (e.g. `IR`, `RC`, `RC_store`...), plus
+shortcuts to **Search** and **Upcoming**.
+
+| Key | Action |
+|---|---|
+| `Enter` | open selected type |
+| `s` | jump to Search |
+| `u` | jump to Upcoming |
+| `Esc` | back |
+
+### Tag list
+
+Shows the 5 most recent tags — listing is cheap, but diffing every tag's PRs isn't, so older
+tags are loaded on demand.
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | move |
+| `Enter` | view changelog for the selected tag |
+| `f` | load 5 more tags |
+| `Esc` | back |
+| `q` | quit |
+
+### Changelog detail
+
+Shows the PR titles merged since the *previous* tag.
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` / `PgUp` / `PgDn` | scroll |
+| `/` | filter by ticket number or `[tag]` |
+| `s` | free-text search across PR titles |
+| `Esc` | back to tag list |
+| `q` | quit |
+
+### Search
+
+Ask "which tag — across every type — shipped a PR matching this?" instead of browsing tag by
+tag.
+
+1. Type a query.
+2. Use `←` / `→` to pick how far back to look (`day` / `week` / `month` / `year` / `max`,
+   defaults to `max`).
+3. `Enter` to search — results are grouped by tag type.
+4. `Esc` from results goes back to the query box, so you can widen the range and search again.
+
+### Upcoming
+
+Shows every PR merged since each tag type's latest tag — i.e. what would ship if you cut a
+release right now. Always reads live from git, so it's never stale.
+
+- One section per tag type: a `<TYPE> — N pending changes` header and the tag it's counting
+  from.
+- PRs listed newest-first, each with its merge date and relative age (e.g. `4 days ago`).
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` / `PgUp` / `PgDn` | scroll |
+| `/` | filter by ticket number or `[tag]` (per section) |
+| `c` | copy every listed PR title — handy for a release-note draft |
+| `Esc` | back |
+| `q` | quit |
+
+## Good to know
+
+- **Caching**: every PR lookup is saved to disk, so viewing the same tag again is instant.
+- **Copy to clipboard**: on the changelog, search, and Upcoming screens, click-and-drag over PR
+  titles to copy the selection (via your terminal's OSC 52 support — iTerm2, Terminal.app,
+  WezTerm, Alacritty, and tmux all work).
 
 ---
 
-Scripted/CI usage, flags, caching internals, and everything about working on the tool itself
-(design rationale, architecture, running from source, tests, extending it)? See
+Looking for flags, CI usage, caching internals, or how to work on the tool itself? See
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
